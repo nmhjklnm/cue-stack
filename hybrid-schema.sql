@@ -228,7 +228,11 @@ create trigger on_message_insert
 
 -- Auto-create message receipts for all participants (Telegram 风格)
 create function public.create_message_receipts()
-returns trigger as $$
+returns trigger
+security definer
+set search_path = public
+language plpgsql
+as $$
 begin
   insert into public.message_receipts (message_id, participant_type, participant_id)
   select new.id, cp.participant_type, cp.participant_id
@@ -237,7 +241,7 @@ begin
     and not (cp.participant_type = new.sender_type and cp.participant_id = new.sender_id);
   return new;
 end;
-$$ language plpgsql;
+$$;
 
 create trigger on_message_create_receipts
   after insert on public.messages
@@ -299,8 +303,9 @@ create policy "Allow individual delete access" on public.messages for delete usi
 );
 create policy "Allow authorized delete access" on public.messages for delete using ( authorize('messages.delete') );
 
--- Message Receipts: 所有认证用户可读
+-- Message Receipts: 所有认证用户可读，触发器可以插入
 create policy "Allow logged-in read access" on public.message_receipts for select using ( auth.role() = 'authenticated' );
+create policy "Allow insert for authenticated" on public.message_receipts for insert with check ( auth.role() = 'authenticated' );
 create policy "Allow update own receipts" on public.message_receipts for update using ( 
   (participant_type = 'human' and auth.uid() = participant_id)
 );
