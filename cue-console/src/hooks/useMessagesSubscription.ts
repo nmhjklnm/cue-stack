@@ -2,22 +2,22 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Message } from '@/lib/api/messages'
 
-export function useMessagesSubscription(conversationId: string | null) {
+export function useMessagesSubscription(channelId: number | null) {
   const [messages, setMessages] = useState<Message[]>([])
   const supabase = createClient()
 
   useEffect(() => {
-    if (!conversationId) return
+    if (!channelId) return
 
     const channel = supabase
-      .channel(`messages:${conversationId}`)
+      .channel(`messages:${channelId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
+          filter: `channel_id=eq.${channelId}`,
         },
         (payload: any) => {
           setMessages((prev) => [...prev, payload.new as Message])
@@ -29,7 +29,7 @@ export function useMessagesSubscription(conversationId: string | null) {
           event: 'UPDATE',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
+          filter: `channel_id=eq.${channelId}`,
         },
         (payload: any) => {
           setMessages((prev) =>
@@ -44,7 +44,7 @@ export function useMessagesSubscription(conversationId: string | null) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [conversationId, supabase])
+  }, [channelId, supabase])
 
   return messages
 }

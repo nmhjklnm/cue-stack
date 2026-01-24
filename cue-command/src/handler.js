@@ -94,7 +94,7 @@ async function handleJoin(runtime) {
   
   const message = [
     `agent_id=${agent.id}`,
-    `conversation_id=${conversation.id}`,
+    `channel_id=${conversation.id}`,
     `project_dir=${process.cwd()}`,
     `agent_terminal=${detectAgentTerminal()}`,
     `agent_runtime=${runtime}`,
@@ -105,7 +105,7 @@ async function handleJoin(runtime) {
     data: {
       message,
       agent_id: agent.id,
-      conversation_id: conversation.id,
+      channel_id: conversation.id,
     },
   };
 }
@@ -119,8 +119,8 @@ async function handleSend(agentId, prompt, payload = null) {
   }
   
   const { data: convs } = await require('./supabase').getSupabaseClient()
-    .then(s => s.from('conversation_participants')
-      .select('conversation_id')
+    .then(s => s.from('channel_participants')
+      .select('channel_id')
       .eq('participant_type', 'agent')
       .eq('participant_id', agentId));
   
@@ -128,17 +128,17 @@ async function handleSend(agentId, prompt, payload = null) {
     throw new Error(`No conversation found for agent: ${agentId}`);
   }
   
-  const conversationId = convs[0].conversation_id;
+  const channelId = convs[0].channel_id;
   
-  await sendMessage(conversationId, agentId, 'agent', prompt, payload);
+  await sendMessage(channelId, agentId, 'agent', prompt, payload);
   
-  const response = await waitForNextMessage(conversationId, 'human', 600000);
+  const response = await waitForNextMessage(channelId, 'human', 600000);
   
   return {
     ok: true,
     data: {
       contents: [
-        { type: 'text', text: response.content },
+        { type: 'text', text: response.message },
       ],
       message_id: response.id,
       payload: response.payload,

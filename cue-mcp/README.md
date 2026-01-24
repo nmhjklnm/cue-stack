@@ -17,7 +17,9 @@ Source: <https://github.com/nmhjklnm/cue-stack/tree/main/cue-mcp>
 
 ## The pitch (10 seconds)
 
-`cuemcp` is an MCP server that gives your agents a single “collaboration inbox” (`cue`/`cue()`), so you can run Claude Code, Cursor, Codex, Windsurf (and other MCP-capable runtimes) with one consistent collaboration flow.
+`cuemcp` is an MCP server that gives your agents a single "collaboration inbox" (`cue`/`cue()`), so you can run Claude Code, Cursor, Codex, Windsurf (and other MCP-capable runtimes) with one consistent collaboration flow.
+
+Powered by Supabase (PostgreSQL + Realtime + Storage). Agents and humans communicate as equal participants in Telegram-style conversations.
 
 Pair it with [`cue-console`](https://github.com/nmhjklnm/cue-stack/tree/main/cue-console) for a desktop/mobile UI to view pending collaboration requests and respond from anywhere.
 
@@ -42,7 +44,16 @@ Assumptions:
 - The current version can occasionally disconnect (for example, the agent replies directly without calling `cue()` at the end).
 - If you get disconnected, type `cue` in the affected runtime to trigger auto-reconnect.
 
-### Step 1: Add the HAP rule to your agent/runtime
+### Step 1: Configure Supabase credentials
+
+Create `~/.cue/.env`:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+```
+
+### Step 2: Add the HAP rule to your agent/runtime
 
 Before using `cuemcp`, add a persistent HAP rule so your agent knows it must call `cue()` at the end of every response.
 
@@ -86,11 +97,9 @@ Before using `cuemcp`, add a persistent HAP rule so your agent knows it must cal
 不确定是否调用时默认采用调用 cue mcp 的方式。
 ```
 
-</details>
-
 Then continue with MCP configuration below.
 
-### Step 2: Configure the MCP server
+### Step 3: Configure the MCP server
 
 <details>
 <summary>Claude Code</summary>
@@ -209,7 +218,7 @@ Then configure your MCP client to run:
 </details>
 
 ---
-### Step 3: Connect your runtime
+### Step 4: Connect your runtime
 
 In the agent/runtime you want to use, type `cue` to trigger connect (or reconnect) and route the collaboration flow to `cue-console`.
 
@@ -224,7 +233,7 @@ cue-console start
 
 ## Command mode (cueme)
 
-If you don’t want to use an MCP runtime but still want to speak to the same collaboration inbox (`~/.cue/cue.db`), you can use a command-style adapter (`cueme`).
+If you don't want to use an MCP runtime but still want to speak to the same collaboration platform (Supabase), you can use a command-style adapter (`cueme`).
 
 Install:
 
@@ -250,42 +259,16 @@ What should I do next?
 EOF
 ```
 
-## How it works (the contract)
-
-### Semantics
-
-- An MCP-capable agent issues a cue (a request that requires collaboration).
-- The team responds (today via a UI; later possibly via a human assistant agent).
-- `cuemcp` provides the MCP-facing surface so any MCP participant can plug in.
-
-### Reference implementation (SQLite mailbox)
-
-Current implementation uses a shared SQLite mailbox to connect the MCP server with a client/UI:
-
-```text
-MCP Server  ──writes──▶  ~/.cue/cue.db  ──reads/writes──▶  cue-console (UI)
-             ◀─polls──                         ◀─responds──
-```
-
-- **DB path**: `~/.cue/cue.db`
-- **Core tables**:
-  - `cue_requests` — server ➜ UI/client
-  - `cue_responses` — UI/client ➜ server
-
-This keeps the integration simple: no websockets, no extra daemon, just a shared mailbox.
-
----
-
 ## Pairing with cue-console
 
-**Rule #1:** both sides must agree on the same DB location.
+**Rule #1:** both sides must use the same Supabase project.
 
-- Start `cuemcp`.
-- Start `cue-console`.
+- Configure Supabase credentials in `~/.cue/.env` (for `cuemcp`)
+- Configure Supabase credentials in `.env.local` (for `cue-console`)
+- Start `cuemcp`
+- Start `cue-console`
 
-- Confirm `cue-console` is reading/writing `~/.cue/cue.db`.
-
-When the UI shows pending items, you’re watching the current reference implementation route collaboration through the console.
+When the UI shows conversations and messages in real-time, you're watching the Telegram-style collaboration flow.
 
 ---
 

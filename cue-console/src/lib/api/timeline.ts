@@ -46,10 +46,10 @@ export async function fetchAgentTimeline(
   if (!agent) return { items: [], nextCursor: null }
   
   const { data: conversations } = await supabase
-    .from('conversations')
+    .from('channels')
     .select('id')
     .eq('type', 'direct')
-    .filter('conversation_participants.participant_id', 'eq', agent.id)
+    .filter('channel_participants.participant_id', 'eq', agent.id)
   
   if (!conversations || conversations.length === 0) {
     return { items: [], nextCursor: null }
@@ -60,8 +60,8 @@ export async function fetchAgentTimeline(
   let query = supabase
     .from('messages')
     .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: false })
+    .eq('channel_id', conversationId)
+    .order('inserted_at', { ascending: false })
     .limit(limit)
   
   if (before) {
@@ -76,25 +76,25 @@ export async function fetchAgentTimeline(
     if (msg.sender_type === 'agent') {
       return {
         item_type: 'request' as const,
-        time: msg.created_at,
+        time: msg.inserted_at,
         request: {
           request_id: String(msg.id),
           agent_id: agentName,
-          prompt: msg.content,
+          prompt: msg.message,
           payload: msg.payload,
           status: 'PENDING' as const,
-          created_at: msg.created_at,
+          created_at: msg.inserted_at,
         },
       }
     } else {
       return {
         item_type: 'response' as const,
-        time: msg.created_at,
+        time: msg.inserted_at,
         response: {
           id: String(msg.id),
           request_id: String(msg.reply_to_message_id || msg.id - 1),
-          response_json: JSON.stringify({ text: msg.content }),
-          created_at: msg.created_at,
+          response_json: JSON.stringify({ text: msg.message }),
+          created_at: msg.inserted_at,
         },
       }
     }

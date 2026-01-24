@@ -8,13 +8,13 @@ export function useConversationsSubscription() {
 
   useEffect(() => {
     const channel = supabase
-      .channel('conversations')
+      .channel('channels')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'conversations',
+          table: 'channels',
         },
         (payload: any) => {
           setConversations((prev) => [payload.new as Conversation, ...prev])
@@ -25,7 +25,7 @@ export function useConversationsSubscription() {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'conversations',
+          table: 'channels',
         },
         (payload: any) => {
           setConversations((prev) =>

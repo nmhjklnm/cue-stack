@@ -4,20 +4,20 @@ export type MessageStatus = 'SENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED'
 
 export interface Message {
   id: number
-  conversation_id: string
+  channel_id: number
   sender_type: 'human' | 'agent'
   sender_id: string
-  content: string
+  message: string
   payload?: any
   status: MessageStatus
-  created_at: string
+  inserted_at: string
   updated_at: string
   edited_at?: string
   reply_to_message_id?: number
 }
 
 export async function getMessages(
-  conversationId: string,
+  channelId: number,
   limit: number = 50,
   before?: number
 ) {
@@ -26,8 +26,8 @@ export async function getMessages(
   let query = supabase
     .from('messages')
     .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: false })
+    .eq('channel_id', channelId)
+    .order('inserted_at', { ascending: false })
     .limit(limit)
   
   if (before) {
@@ -41,7 +41,7 @@ export async function getMessages(
 }
 
 export async function sendMessage(
-  conversationId: string,
+  channelId: number,
   content: string,
   payload?: any,
   fileIds?: string[]
@@ -54,10 +54,10 @@ export async function sendMessage(
   const { data: message, error: msgError } = await supabase
     .from('messages')
     .insert({
-      conversation_id: conversationId,
+      channel_id: channelId,
       sender_type: 'human',
       sender_id: user.id,
-      content,
+      message: content,
       payload,
       status: 'SENT',
     })
@@ -105,7 +105,7 @@ export async function editMessage(messageId: number, content: string) {
   const { data, error } = await supabase
     .from('messages')
     .update({
-      content,
+      message: content,
       edited_at: new Date().toISOString(),
     })
     .eq('id', messageId)

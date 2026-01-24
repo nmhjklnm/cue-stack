@@ -67,31 +67,34 @@ async def join(runtime: str = "unknown") -> str:
     
     agent_id = agent.data[0]["id"]
     
-    conversations = supabase.table("conversations").select("*").filter(
-        "conversation_participants.participant_type", "eq", "agent"
-    ).filter(
-        "conversation_participants.participant_id", "eq", agent_id
+    # 查找或创建 channel
+    participant_channels = supabase.table("channel_participants").select("channel_id").eq(
+        "participant_type", "agent"
+    ).eq(
+        "participant_id", agent_id
     ).execute()
     
-    if conversations.data:
-        conversation_id = conversations.data[0]["id"]
+    if participant_channels.data:
+        channel_id = participant_channels.data[0]["channel_id"]
     else:
-        conv = supabase.table("conversations").insert({
+        slug = f"direct-{datetime.now().timestamp()}-{agent_id[:8]}"
+        conv = supabase.table("channels").insert({
+            "slug": slug,
             "type": "direct",
             "created_by_type": "agent",
             "created_by_id": agent_id,
         }).execute()
         
-        conversation_id = conv.data[0]["id"]
+        channel_id = conv.data[0]["id"]
         
-        supabase.table("conversation_participants").insert([
+        supabase.table("channel_participants").insert([
             {
-                "conversation_id": conversation_id,
+                "channel_id": channel_id,
                 "participant_type": "human",
                 "participant_id": user.user.id,
             },
             {
-                "conversation_id": conversation_id,
+                "channel_id": channel_id,
                 "participant_type": "agent",
                 "participant_id": agent_id,
             },
@@ -100,7 +103,7 @@ async def join(runtime: str = "unknown") -> str:
     print(f"[MCP] Created agent: {agent_name} (id={agent_id})")
     return (
         f"agent_id={agent_name}\n"
-        f"conversation_id={conversation_id}\n\n"
+        f"channel_id={channel_id}\n\n"
         "Use this agent_id when calling cue(prompt, agent_id)."
     )
 
@@ -137,8 +140,8 @@ async def recall(hints: str) -> str:
         "Use this agent_id when calling cue(prompt, agent_id)."
     )
 
-async def wait_for_response(conversation_id: str, timeout: float = 600.0) -> dict:
-    """Wait for next human message in conversation."""
+async def wait_for_response(channel_id: int, timeout: float = 600.0) -> dict:
+    """Wait for next human message in channel."""
     supabase = get_supabase_client()
     start_time = asyncio.get_event_loop().time()
     
@@ -146,10 +149,10 @@ async def wait_for_response(conversation_id: str, timeout: float = 600.0) -> dic
     
     while True:
         messages = supabase.table("messages").select("*").eq(
-            "conversation_id", conversation_id
+            "channel_id", channel_id
         ).eq(
             "sender_type", "human"
-        ).order("created_at", desc=True).limit(1).execute()
+        ).order("inserted_at", desc=True).limit(1).execute()
         
         if messages.data:
             msg = messages.data[0]
@@ -166,7 +169,7 @@ async def wait_for_response(conversation_id: str, timeout: float = 600.0) -> dic
 def _build_tool_result_from_message(message: dict) -> list[TextContent | ImageContent]:
     result: list[TextContent | ImageContent] = []
     
-    content = message.get("content", "").strip()
+    content = message.get("message", "").strip()
     if content:
         result.append(
             TextContent(
@@ -222,16 +225,16 @@ async def cue(prompt: str, agent_id: str, payload: str | None = None) -> list[Te
     
     agent_db_id = agents.data[0]["id"]
     
-    conversations = supabase.table("conversations").select("id").filter(
-        "conversation_participants.participant_type", "eq", "agent"
-    ).filter(
-        "conversation_participants.participant_id", "eq", agent_db_id
+    channels = supabase.table("channel_participants").select("channel_id").eq(
+        "participant_type", "agent"
+    ).eq(
+        "participant_id", agent_db_id
     ).execute()
     
-    if not conversations.data:
-        raise RuntimeError(f"Conversation not found for agent: {agent_id}")
+    if not channels.data:
+        raise RuntimeError(f"Channel not found for agent: {agent_id}")
     
-    conversation_id = conversations.data[0]["id"]
+    channel_id = channels.data[0]["channel_id"]
     
     payload_data = None
     if payload:
@@ -242,17 +245,17 @@ async def cue(prompt: str, agent_id: str, payload: str | None = None) -> list[Te
             pass
     
     message = supabase.table("messages").insert({
-        "conversation_id": conversation_id,
+        "channel_id": channel_id,
         "sender_type": "agent",
         "sender_id": agent_db_id,
-        "content": prompt,
+        "message": prompt,
         "payload": payload_data,
         "status": "SENT",
     }).execute()
     
     print(f"[MCP] Sent message, waiting for response...")
     
-    response_msg = await wait_for_response(conversation_id, timeout=600.0)
+    response_msg = await wait_for_response(channel_id, timeout=600.0)
     
     print(f"[MCP] Received response")
     return _build_tool_result_from_message(response_msg)

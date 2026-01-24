@@ -1,36 +1,49 @@
 import { createClient } from '@/lib/supabase/client'
 
 export interface Conversation {
-  id: string
+  id: number
+  slug: string
   type: 'direct' | 'group'
   title?: string
   created_by_type: 'human' | 'agent'
   created_by_id: string
-  created_at: string
-  updated_at: string
+  inserted_at: string
   last_message_at?: string
 }
 
 export async function getConversations() {
   const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) throw new Error('Not authenticated')
+  
+  // 获取用户参与的所有 channel IDs
+  const { data: participantData, error: partError } = await supabase
+    .from('channel_participants')
+    .select('channel_id')
+    .eq('participant_type', 'human')
+    .eq('participant_id', user.id)
+  
+  if (partError) throw partError
+  if (!participantData || participantData.length === 0) return []
+  
+  const channelIds = participantData.map(p => p.channel_id)
   
   const { data, error } = await supabase
-    .from('conversations')
-    .select(`
-      *,
-      conversation_participants!inner(participant_type, participant_id)
-    `)
+    .from('channels')
+    .select('*')
+    .in('id', channelIds)
     .order('last_message_at', { ascending: false, nullsFirst: false })
   
   if (error) throw error
   return data as Conversation[]
 }
 
-export async function getConversation(id: string) {
+export async function getConversation(id: number) {
   const supabase = createClient()
   
   const { data, error } = await supabase
-    .from('conversations')
+    .from('channels')
     .select('*')
     .eq('id', id)
     .single()
@@ -49,9 +62,13 @@ export async function createConversation(
   
   if (!user) throw new Error('Not authenticated')
   
+  // 生成 slug
+  const slug = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  
   const { data: conversation, error: convError } = await supabase
-    .from('conversations')
+    .from('channels')
     .insert({
+      slug,
       type,
       title,
       created_by_type: 'human',
@@ -63,16 +80,16 @@ export async function createConversation(
   if (convError) throw convError
   
   const participantsToInsert = [
-    { conversation_id: conversation.id, participant_type: 'human', participant_id: user.id },
+    { channel_id: conversation.id, participant_type: 'human', participant_id: user.id },
     ...participants.map(p => ({
-      conversation_id: conversation.id,
+      channel_id: conversation.id,
       participant_type: p.type,
       participant_id: p.id,
     })),
   ]
   
   const { error: partError } = await supabase
-    .from('conversation_participants')
+    .from('channel_participants')
     .insert(participantsToInsert)
   
   if (partError) throw partError
@@ -86,23 +103,45 @@ export async function getOrCreateDirectConversation(agentId: string) {
   
   if (!user) throw new Error('Not authenticated')
   
-  const { data: existing } = await supabase
-    .from('conversations')
-    .select(`
-      *,
-      conversation_participants!inner(participant_type, participant_id)
-    `)
-    .eq('type', 'direct')
-    .eq('conversation_participants.participant_type', 'agent')
-    .eq('conversation_participants.participant_id', agentId)
+  // 使用 RPC 函数（如果存在）或手动查询
+  const { data: existing, error: rpcError } = await supabase
+    .rpc('get_or_create_direct_conversation', {
+      p_user_id: user.id,
+      p_agent_id: agentId
+    })
   
-  if (existing && existing.length > 0) {
-    const conv = existing.find((c: any) => 
-      c.conversation_participants.some((p: any) => 
-        p.participant_type === 'human' && p.participant_id === user.id
-      )
-    )
-    if (conv) return conv as Conversation
+  if (!rpcError && existing) {
+    return existing as Conversation
+  }
+  
+  // 回退：手动查询
+  const { data: userChannels } = await supabase
+    .from('channel_participants')
+    .select('channel_id')
+    .eq('participant_type', 'human')
+    .eq('participant_id', user.id)
+  
+  if (userChannels && userChannels.length > 0) {
+    const channelIds = userChannels.map(p => p.channel_id)
+    
+    const { data: agentChannels } = await supabase
+      .from('channel_participants')
+      .select('channel_id')
+      .eq('participant_type', 'agent')
+      .eq('participant_id', agentId)
+      .in('channel_id', channelIds)
+    
+    if (agentChannels && agentChannels.length > 0) {
+      const sharedChannelId = agentChannels[0].channel_id
+      const { data: channel } = await supabase
+        .from('channels')
+        .select('*')
+        .eq('id', sharedChannelId)
+        .eq('type', 'direct')
+        .single()
+      
+      if (channel) return channel as Conversation
+    }
   }
   
   return createConversation('direct', [{ type: 'agent', id: agentId }])

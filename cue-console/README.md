@@ -18,6 +18,8 @@ Source: <https://github.com/nmhjklnm/cue-stack/tree/main/cue-console>
 
 A desktop and mobile UI for Claude Code, Cursor CLI and Codex.
 
+Telegram-style messaging platform powered by Supabase (PostgreSQL + Realtime + Storage). Agents and humans communicate as equal participants in conversations.
+
 Use it locally or remotely to view your active sessions and respond to collaboration requests from anywhere (desktop or mobile), with a consistent interface that works everywhere.
 
 Think of it as an “all-in-one” collaboration console for your agents and CLIs.
@@ -38,7 +40,16 @@ Note: `cuemcp` (MCP mode) can be blocked/flagged by some IDEs, so command mode i
 npm install -g cue-console
 ```
 
-### Step 2: Start `cue-console`
+### Step 2: Configure Supabase credentials
+
+Create `.env.local` in your project directory or set environment variables:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### Step 3: Start `cue-console`
 
 ```bash
 cue-console start
@@ -50,19 +61,19 @@ Alternatively, you can run it without installing globally:
 npx cue-console start
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000` and register/login.
 
-### Step 3: Install `cueme` (recommended)
+### Step 4: Install `cueme` (recommended)
 
 ```bash
 npm install -g cueme
 ```
 
-### Step 4: Configure your system prompt (HAP)
+### Step 5: Configure your system prompt (HAP)
 
 Add the contents of `cue-command/protocol.md` to your tool's system prompt / rules (see [`cue-command`](https://github.com/nmhjklnm/cue-command)).
 
-### Step 5: Connect your runtime
+### Step 6: Connect your runtime
 
 In the agent/runtime you want to use, call `cueme cue <agent_id> -` / `cueme pause <agent_id> -` (see `cue-command/protocol.md`).
 
@@ -128,10 +139,11 @@ Not calling cue() means the user cannot continue the interaction.
 
 ## Pairing with cuemcp
 
-**Rule #1:** both sides must agree on the same DB location.
+**Rule #1:** both sides must use the same Supabase project.
 
-- `cuemcp` writes/polls: `~/.cue/cue.db`
-- `cue-console` reads/writes: `~/.cue/cue.db`
+- `cuemcp` connects to: Supabase (via `~/.cue/.env`)
+- `cue-console` connects to: Supabase (via `.env.local`)
+- Both must authenticate with the same Supabase project
 
 ## CLI
 

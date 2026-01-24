@@ -31,29 +31,54 @@ async function getOrCreateDirectConversation(agentId) {
   
   if (!user) throw new Error('Not authenticated');
   
-  const { data: existing } = await supabase
-    .from('conversations')
-    .select(`
-      *,
-      conversation_participants!inner(participant_type, participant_id)
-    `)
-    .eq('type', 'direct');
+  // 尝试使用 RPC 函数
+  const { data: existing, error: rpcError } = await supabase
+    .rpc('get_or_create_direct_conversation', {
+      p_user_id: user.id,
+      p_agent_id: agentId
+    });
   
-  if (existing && existing.length > 0) {
-    for (const conv of existing) {
-      const participants = conv.conversation_participants || [];
-      const hasAgent = participants.some(p => p.participant_type === 'agent' && p.participant_id === agentId);
-      const hasUser = participants.some(p => p.participant_type === 'human' && p.participant_id === user.id);
+  if (!rpcError && existing) {
+    return existing;
+  }
+  
+  // 回退：手动查询
+  const { data: userChannels } = await supabase
+    .from('channel_participants')
+    .select('channel_id')
+    .eq('participant_type', 'human')
+    .eq('participant_id', user.id);
+  
+  if (userChannels && userChannels.length > 0) {
+    const channelIds = userChannels.map(p => p.channel_id);
+    
+    const { data: agentChannels } = await supabase
+      .from('channel_participants')
+      .select('channel_id')
+      .eq('participant_type', 'agent')
+      .eq('participant_id', agentId)
+      .in('channel_id', channelIds);
+    
+    if (agentChannels && agentChannels.length > 0) {
+      const sharedChannelId = agentChannels[0].channel_id;
+      const { data: channel } = await supabase
+        .from('channels')
+        .select('*')
+        .eq('id', sharedChannelId)
+        .eq('type', 'direct')
+        .single();
       
-      if (hasAgent && hasUser) {
-        return conv;
-      }
+      if (channel) return channel;
     }
   }
   
+  // 创建新 channel
+  const slug = `direct-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
   const { data: conversation, error: convError } = await supabase
-    .from('conversations')
+    .from('channels')
     .insert({
+      slug,
       type: 'direct',
       created_by_type: 'agent',
       created_by_id: agentId,
@@ -64,10 +89,10 @@ async function getOrCreateDirectConversation(agentId) {
   if (convError) throw convError;
   
   const { error: partError } = await supabase
-    .from('conversation_participants')
+    .from('channel_participants')
     .insert([
-      { conversation_id: conversation.id, participant_type: 'human', participant_id: user.id },
-      { conversation_id: conversation.id, participant_type: 'agent', participant_id: agentId },
+      { channel_id: conversation.id, participant_type: 'human', participant_id: user.id },
+      { channel_id: conversation.id, participant_type: 'agent', participant_id: agentId },
     ]);
   
   if (partError) throw partError;
@@ -75,16 +100,16 @@ async function getOrCreateDirectConversation(agentId) {
   return conversation;
 }
 
-async function sendMessage(conversationId, senderId, senderType, content, payload = null) {
+async function sendMessage(channelId, senderId, senderType, content, payload = null) {
   const supabase = await getSupabaseClient();
   
   const { data, error } = await supabase
     .from('messages')
     .insert({
-      conversation_id: conversationId,
+      channel_id: channelId,
       sender_type: senderType,
       sender_id: senderId,
-      content,
+      message: content,
       payload,
       status: 'SENT',
     })
@@ -95,14 +120,14 @@ async function sendMessage(conversationId, senderId, senderType, content, payloa
   return data;
 }
 
-async function getMessages(conversationId, limit = 50) {
+async function getMessages(channelId, limit = 50) {
   const supabase = await getSupabaseClient();
   
   const { data, error } = await supabase
     .from('messages')
     .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: false })
+    .eq('channel_id', channelId)
+    .order('inserted_at', { ascending: false })
     .limit(limit);
   
   if (error) throw error;
@@ -123,18 +148,18 @@ async function updateAgentStatus(agentId, status) {
   if (error) throw error;
 }
 
-async function subscribeToConversation(conversationId, callback) {
+async function subscribeToConversation(channelId, callback) {
   const supabase = await getSupabaseClient();
   
   const channel = supabase
-    .channel(`messages:${conversationId}`)
+    .channel(`messages:${channelId}`)
     .on(
       'postgres_changes',
       {
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
+        filter: `channel_id=eq.${channelId}`,
       },
       (payload) => {
         callback(payload.new);
@@ -145,7 +170,7 @@ async function subscribeToConversation(conversationId, callback) {
   return channel;
 }
 
-async function waitForNextMessage(conversationId, senderType, timeoutMs = 600000) {
+async function waitForNextMessage(channelId, senderType, timeoutMs = 600000) {
   const supabase = await getSupabaseClient();
   
   return new Promise((resolve, reject) => {
@@ -155,14 +180,14 @@ async function waitForNextMessage(conversationId, senderType, timeoutMs = 600000
     }, timeoutMs);
     
     const channel = supabase
-      .channel(`wait:${conversationId}:${Date.now()}`)
+      .channel(`wait:${channelId}:${Date.now()}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
+          filter: `channel_id=eq.${channelId}`,
         },
         (payload) => {
           const msg = payload.new;

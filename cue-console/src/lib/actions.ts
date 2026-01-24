@@ -95,7 +95,7 @@ export async function submitResponse(
   
   const { data: message } = await supabase
     .from('messages')
-    .select('conversation_id')
+    .select('channel_id')
     .eq('id', messageId)
     .single()
   
@@ -104,7 +104,7 @@ export async function submitResponse(
   }
   
   const { sendMessage } = await import('./api/messages')
-  await sendMessage(message.conversation_id, text)
+  await sendMessage(message.channel_id, text)
   
   revalidatePath('/')
   return { success: true } as const

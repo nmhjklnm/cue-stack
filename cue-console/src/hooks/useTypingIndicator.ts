@@ -7,14 +7,14 @@ interface TypingUser {
   timestamp: number
 }
 
-export function useTypingIndicator(conversationId: string | null) {
+export function useTypingIndicator(channelId: number | null) {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const supabase = createClient()
 
   useEffect(() => {
-    if (!conversationId) return
+    if (!channelId) return
 
-    const channel = supabase.channel(`typing:${conversationId}`, {
+    const channel = supabase.channel(`typing:${channelId}`, {
       config: {
         broadcast: { self: false },
       },
@@ -40,12 +40,12 @@ export function useTypingIndicator(conversationId: string | null) {
       clearInterval(interval)
       supabase.removeChannel(channel)
     }
-  }, [conversationId, supabase])
+  }, [channelId, supabase])
 
   const sendTyping = async (userType: 'human' | 'agent', userId: string) => {
-    if (!conversationId) return
+    if (!channelId) return
     
-    const channel = supabase.channel(`typing:${conversationId}`)
+    const channel = supabase.channel(`typing:${channelId}`)
     await channel.send({
       type: 'broadcast',
       event: 'typing',

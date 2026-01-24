@@ -10,11 +10,11 @@ export async function fetchConversationList(options?: {
   if (!user) return []
   
   const { data: conversations, error } = await supabase
-    .from('conversations')
+    .from('channels')
     .select(`
       *,
-      conversation_participants!inner(participant_type, participant_id),
-      messages(id, content, sender_type, sender_id, created_at)
+      channel_participants!inner(participant_type, participant_id),
+      messages(id, message, sender_type, sender_id, inserted_at)
     `)
     .order('last_message_at', { ascending: false, nullsFirst: false })
   
@@ -29,7 +29,7 @@ export async function fetchConversationList(options?: {
   const items: ConversationItem[] = []
   
   for (const conv of conversations || []) {
-    const participants = (conv as any).conversation_participants || []
+    const participants = (conv as any).channel_participants || []
     const messages = (conv as any).messages || []
     
     const agentParticipant = participants.find((p: any) => p.participant_type === 'agent')
@@ -40,13 +40,13 @@ export async function fetchConversationList(options?: {
     
     const lastMessage = messages[messages.length - 1]
     const lastMessagePreview = lastMessage 
-      ? (lastMessage.sender_type === 'human' ? 'You: ' : '') + lastMessage.content.slice(0, 50)
+      ? (lastMessage.sender_type === 'human' ? 'You: ' : '') + lastMessage.message.slice(0, 50)
       : undefined
     
     const pendingMessages = await supabase
       .from('messages')
       .select('id', { count: 'exact', head: true })
-      .eq('conversation_id', conv.id)
+      .eq('channel_id', conv.id)
       .eq('sender_type', 'agent')
       .is('read_at', null)
     
@@ -59,7 +59,7 @@ export async function fetchConversationList(options?: {
       projectName: agent.metadata?.project_dir ? agent.metadata.project_dir.split('/').pop() : undefined,
       pendingCount: pendingMessages.count || 0,
       lastMessage: lastMessagePreview,
-      lastTime: conv.last_message_at || conv.created_at,
+      lastTime: conv.last_message_at || conv.inserted_at,
     })
   }
   

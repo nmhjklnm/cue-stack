@@ -20,7 +20,9 @@ Source: <https://github.com/nmhjklnm/cue-stack/tree/main/cue-command>
 
 [Contributing](./CONTRIBUTING.md) · [Trademark](./TRADEMARK.md)
 
-A command protocol adapter for Cue, compatible with the existing SQLite mailbox (`~/.cue/cue.db`).
+A command protocol adapter for Cue, powered by Supabase (PostgreSQL + Realtime + Storage).
+
+Agents and humans communicate as equal participants in Telegram-style conversations.
 
 Note: image sending is currently unavailable (WIP).
 
@@ -32,7 +34,24 @@ Note: image sending is currently unavailable (WIP).
 npm install -g cueme
 ```
 
-### Step 2: Configure the protocol.md as your system prompt
+### Step 2: Configure Supabase credentials
+
+Create `~/.cue/.env`:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+```
+
+### Step 3: Login
+
+```bash
+cueme login
+```
+
+This opens your browser for authentication and saves credentials to `~/.cue/credentials.json`.
+
+### Step 4: Configure the protocol.md as your system prompt
 
 Copy the contents of `protocol.md` into your runtime's system prompt / persistent rules:
 
@@ -42,9 +61,9 @@ If you installed via npm, `protocol.md` is also included in the package.
 
 This file defines the Human Agent Protocol (HAP) rules and the `cueme` command interface.
 
-### Step 3: Run the UI and connect
+### Step 5: Run the UI and connect
 
-`cueme` speaks to the same SQLite mailbox used by the UI (`~/.cue/cue.db`). Start the UI:
+`cueme` connects to Supabase. Start the UI:
 
 ```bash
 npm install -g cue-console
@@ -56,6 +75,30 @@ Open `http://localhost:3000`, then in your runtime chat type:
 `cue`
 
 ## Usage
+
+### login
+
+```bash
+cueme login
+```
+
+Authenticate via browser and save credentials.
+
+### logout
+
+```bash
+cueme logout
+```
+
+Clear local credentials.
+
+### whoami
+
+```bash
+cueme whoami
+```
+
+Show current user information.
 
 ### join
 
