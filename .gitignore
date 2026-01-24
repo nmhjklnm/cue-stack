@@ -9,3 +9,4 @@ __pycache__/
 .env
 .env.local
 pnpm-lock.yaml
+.archive/
