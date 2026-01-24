@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchConversationList, fetchArchivedConversationCount, fetchPinnedConversationKeys, type ConversationItem } from "@/lib/actions";
+import { fetchConversationList, fetchArchivedConversationCount, fetchPinnedConversationKeys } from "@/lib/api/conversation-list";
+import type { ConversationItem } from "@/lib/types";
 import { perfEnabled } from "./utils";
 
 export function useConversationList(view: "active" | "archived") {

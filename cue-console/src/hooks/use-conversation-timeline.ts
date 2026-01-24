@@ -5,10 +5,18 @@ import {
   bootstrapConversation,
   fetchAgentTimeline,
   fetchGroupTimeline,
-  type AgentTimelineItem,
-  type CueRequest,
-  type QueuedMessage,
-} from "@/lib/actions";
+  type TimelineItem as AgentTimelineItem,
+} from "@/lib/api/timeline";
+import type { QueuedMessage } from "@/lib/types";
+
+type CueRequest = {
+  request_id: string;
+  agent_id: string;
+  prompt: string;
+  payload?: any;
+  status: string;
+  created_at: string;
+};
 
 export function useConversationTimeline({
   type,

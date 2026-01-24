@@ -89,3 +89,13 @@ export interface ConversationItem {
   agentRuntime?: string;
   projectName?: string;
 }
+
+/**
+ * Queued message
+ */
+export interface QueuedMessage {
+  id: string;
+  text: string;
+  images: { mime_type: string; base64_data: string; file_name?: string }[];
+  createdAt: number;
+}
