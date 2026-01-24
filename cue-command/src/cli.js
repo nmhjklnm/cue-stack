@@ -97,6 +97,9 @@ async function main() {
         'Usage:',
         '  cueme -v|--version',
         '  cueme -p|--protocol',
+        '  cueme login',
+        '  cueme logout',
+        '  cueme whoami',
         '  cueme proto <agent>',
         '  cueme proto apply <agent>',
         '  cueme proto rm|remove <agent>',
@@ -216,6 +219,31 @@ async function main() {
     process.stderr.write('Available fixes:\n');
     process.stderr.write('  powershell_utf-8  Fix PowerShell encoding for Chinese characters\n');
     process.exitCode = 2;
+    return;
+  }
+
+  if (sub === 'login' || sub === 'logout' || sub === 'whoami') {
+    const { handleLogin, handleLogout, handleWhoami } = require('./handler-new');
+    try {
+      let result;
+      if (sub === 'login') {
+        result = await handleLogin();
+      } else if (sub === 'logout') {
+        result = await handleLogout();
+      } else {
+        result = await handleWhoami();
+      }
+      
+      if (result.ok) {
+        process.stdout.write((result.data.message || JSON.stringify(result.data)) + '\n');
+      } else {
+        process.stderr.write((result.error || 'Command failed') + '\n');
+        process.exitCode = 1;
+      }
+    } catch (err) {
+      process.stderr.write(`error: ${err.message}\n`);
+      process.exitCode = 1;
+    }
     return;
   }
 
@@ -355,6 +383,31 @@ async function main() {
     } else if (promptPos != null) {
       parsed.prompt = String(promptPos);
     }
+  }
+
+  if (sub === 'join' || sub === 'cue' || sub === 'pause') {
+    const { handleJoin, handleCue, handlePause } = require('./handler-new');
+    try {
+      let result;
+      if (sub === 'join') {
+        result = await handleJoin(parsed.agent_runtime);
+      } else if (sub === 'cue') {
+        result = await handleCue(parsed.agent_id, parsed.prompt, parsed.payload ? JSON.parse(parsed.payload) : null);
+      } else if (sub === 'pause') {
+        result = await handlePause(parsed.agent_id, parsed.prompt || 'Continue?');
+      }
+      
+      if (result.ok) {
+        process.stdout.write(extractTextFromResult(result) + '\n');
+      } else {
+        process.stderr.write((result.error || 'Command failed') + '\n');
+        process.exitCode = 1;
+      }
+    } catch (err) {
+      process.stderr.write(`error: ${err.message}\n`);
+      process.exitCode = 1;
+    }
+    return;
   }
 
   const result = await handleCommand({ subcommand: sub, args: parsed });
