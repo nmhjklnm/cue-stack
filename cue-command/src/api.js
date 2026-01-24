@@ -32,14 +32,20 @@ async function getOrCreateDirectConversation(agentId) {
   if (!user) throw new Error('Not authenticated');
   
   // 尝试使用 RPC 函数
-  const { data: existing, error: rpcError } = await supabase
+  const { data: channelId, error: rpcError } = await supabase
     .rpc('get_or_create_direct_conversation', {
       p_user_id: user.id,
       p_agent_id: agentId
     });
   
-  if (!rpcError && existing) {
-    return existing;
+  if (!rpcError && channelId) {
+    const { data: channel } = await supabase
+      .from('channels')
+      .select('*')
+      .eq('id', channelId)
+      .single();
+    
+    if (channel) return channel;
   }
   
   // 回退：手动查询
@@ -173,33 +179,91 @@ async function subscribeToConversation(channelId, callback) {
 async function waitForNextMessage(channelId, senderType, timeoutMs = 600000) {
   const supabase = await getSupabaseClient();
   
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      supabase.removeChannel(channel);
-      reject(new Error('Timeout waiting for message'));
-    }, timeoutMs);
+  // Realtime 状态 (2026-01-25)
+  // ✅ WebSocket 连接：已修复（Kong 主机名配置）
+  // ✅ postgres_changes：已优化配置
+  //    - RLS 策略优化（auth.uid() → (select auth.uid())）
+  //    - 添加外键索引
+  //    - Replica Identity 设置为 FULL
+  //    - 表已发布到 supabase_realtime publication
+  // 
+  // 当前方案：使用 Realtime（实时性 <100ms）
+  const USE_POLLING = false; // 已启用 Realtime，性能优化完成
+  
+  if (USE_POLLING) {
+    // 轮询方案（降级）
+    const startTime = Date.now();
+    const pollInterval = 500; // 500ms
     
-    const channel = supabase
-      .channel(`wait:${channelId}:${Date.now()}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `channel_id=eq.${channelId}`,
-        },
-        (payload) => {
-          const msg = payload.new;
-          if (msg.sender_type === senderType) {
-            clearTimeout(timeout);
-            supabase.removeChannel(channel);
-            resolve(msg);
-          }
+    const { data: latestMessages } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('channel_id', channelId)
+      .order('inserted_at', { ascending: false })
+      .limit(1);
+    
+    const lastMessageId = latestMessages && latestMessages.length > 0 ? latestMessages[0].id : 0;
+    
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        if (Date.now() - startTime > timeoutMs) {
+          reject(new Error('Timeout waiting for message'));
+          return;
         }
-      )
-      .subscribe();
-  });
+        
+        try {
+          const { data: newMessages } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('channel_id', channelId)
+            .eq('sender_type', senderType)
+            .gt('id', lastMessageId)
+            .order('inserted_at', { ascending: true })
+            .limit(1);
+          
+          if (newMessages && newMessages.length > 0) {
+            resolve(newMessages[0]);
+            return;
+          }
+          
+          setTimeout(poll, pollInterval);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      
+      poll();
+    });
+  } else {
+    // Realtime 方案（推荐）
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        supabase.removeChannel(channel);
+        reject(new Error('Timeout waiting for message'));
+      }, timeoutMs);
+      
+      const channel = supabase
+        .channel(`wait:${channelId}:${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `channel_id=eq.${channelId}`,
+          },
+          (payload) => {
+            const msg = payload.new;
+            if (msg.sender_type === senderType) {
+              clearTimeout(timeout);
+              supabase.removeChannel(channel);
+              resolve(msg);
+            }
+          }
+        )
+        .subscribe();
+    });
+  }
 }
 
 module.exports = {
