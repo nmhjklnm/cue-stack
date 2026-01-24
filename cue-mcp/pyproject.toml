@@ -21,7 +21,7 @@ classifiers = [
 dependencies = [
   "fastmcp",
   "mcp",
-  "sqlmodel",
+  "supabase>=2.10.0",
   "prompt_toolkit",
 ]
 
