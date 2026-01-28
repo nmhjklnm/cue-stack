@@ -186,6 +186,10 @@ export async function createNewGroup(name: string, members: string[]) {
   return { success: false, error: 'Groups not yet supported' } as const
 }
 
+export async function setGroupName(groupId: string, name: string) {
+  return { success: true } as const
+}
+
 export async function fetchMessageQueue(type: 'agent' | 'group', id: string) {
   return []
 }

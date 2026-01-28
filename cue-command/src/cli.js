@@ -223,7 +223,7 @@ async function main() {
   }
 
   if (sub === 'login' || sub === 'logout' || sub === 'whoami') {
-    const { handleLogin, handleLogout, handleWhoami } = require('./handler-new');
+    const { handleLogin, handleLogout, handleWhoami } = require('./handler');
     try {
       let result;
       if (sub === 'login') {
@@ -386,7 +386,7 @@ async function main() {
   }
 
   if (sub === 'join' || sub === 'cue' || sub === 'pause') {
-    const { handleJoin, handleCue, handlePause } = require('./handler-new');
+    const { handleJoin, handleCue, handlePause } = require('./handler');
     try {
       let result;
       if (sub === 'join') {

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_USER_CONFIG } from "@/lib/user-config";
+import { UserMenu } from "@/components/user-menu";
 import {
   Dialog,
   DialogContent,
@@ -249,8 +250,10 @@ export function ConversationList({
   }, []);
 
   const loadData = useCallback(async () => {
+    console.log('[ConversationList] loadData called, view:', view);
     const t0 = perfEnabled() ? performance.now() : 0;
     const data = await fetchConversationList({ view });
+    console.log('[ConversationList] fetchConversationList returned:', data.length, 'items', data);
     setItems(data);
     const count = await fetchArchivedConversationCount();
     setArchivedCount(count);
@@ -639,6 +642,7 @@ export function ConversationList({
               </svg>
             </div>
             
+            <UserMenu />
             <Button
               variant="ghost"
               size="icon"
@@ -694,6 +698,7 @@ export function ConversationList({
             </a>
             
             <div className="flex items-center gap-0.5 shrink-0">
+              <UserMenu />
               <Button
                 variant="ghost"
                 size="icon"
