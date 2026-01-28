@@ -285,7 +285,10 @@ function ensureDirForFile(filePath) {
 function buildFinalProto({ cfg, agent }) {
   const prefixMap = cfg['cueme.proto.prefix'] || {};
   const runtimeMap = cfg['cueme.proto.runtime'] || {};
-  const protocolPath = cfg['cueme.proto.protocol_path'];
+  let protocolPath = cfg['cueme.proto.protocol_path'];
+  if (typeof protocolPath !== 'string' || protocolPath.trim().length === 0) {
+    protocolPath = path.join(__dirname, '..', 'protocol.md');
+  }
 
   const prefixRaw = prefixMap[agent];
   let prefix;
@@ -309,10 +312,6 @@ function buildFinalProto({ cfg, agent }) {
     throw new Error(`error: runtime not configured: cueme.proto.runtime["${agent}"]`);
   }
 
-  if (typeof protocolPath !== 'string' || protocolPath.trim().length === 0) {
-    throw new Error('error: cannot read protocol.md');
-  }
-
   const protocolPathExpanded = expandPath(protocolPath);
   const resolvedProtocolPath = path.isAbsolute(protocolPathExpanded)
     ? protocolPathExpanded
@@ -322,7 +321,7 @@ function buildFinalProto({ cfg, agent }) {
   try {
     protocol = fs.readFileSync(resolvedProtocolPath, 'utf8');
   } catch {
-    throw new Error('error: cannot read protocol.md');
+    throw new Error(`error: cannot read protocol file: ${resolvedProtocolPath}`);
   }
 
   return { prefix, protocol, runtime };
