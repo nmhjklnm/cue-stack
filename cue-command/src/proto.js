@@ -76,6 +76,20 @@ function detectVscodeCandidates({ platform }) {
   return candidates;
 }
 
+function detectClaudeCandidates({ platform }) {
+  const candidates = [];
+  const home = os.homedir();
+  const userProfile = process.env.USERPROFILE || home;
+
+  if (platform === 'macos') candidates.push(path.join(home, '.claude', 'CLAUDE.md'));
+  if (platform === 'linux') candidates.push(path.join(home, '.claude', 'CLAUDE.md'));
+  if (platform === 'windows') {
+    candidates.push(path.join(userProfile, '.claude', 'CLAUDE.md'));
+  }
+
+  return candidates;
+}
+
 function detectWindsurfCandidates({ platform }) {
   const candidates = [];
   const cwd = process.cwd();
@@ -192,9 +206,10 @@ function detectAndFillTemplatePaths(tpl) {
   const keyVscode = `${platform}.vscode`;
   const keyWindsurf = `${platform}.windsurf`;
   const keyKiro = `${platform}.kiro`;
+  const keyClaude = `${platform}.claude`;
 
   const pathMap = tpl['cueme.proto.path'] || {};
-  const detected = { platform, vscode: '', windsurf: '', kiro: '' };
+  const detected = { platform, vscode: '', windsurf: '', kiro: '', claude: '' };
 
   if (typeof pathMap !== 'object' || Array.isArray(pathMap)) {
     return { tpl, detected };
@@ -222,6 +237,14 @@ function detectAndFillTemplatePaths(tpl) {
     if (p) {
       pathMap[keyKiro] = p;
       detected.kiro = p;
+    }
+  }
+
+  if (typeof pathMap[keyClaude] !== 'string' || pathMap[keyClaude].trim().length === 0) {
+    const p = firstExistingPath(detectClaudeCandidates({ platform }));
+    if (p) {
+      pathMap[keyClaude] = p;
+      detected.claude = p;
     }
   }
 
@@ -564,10 +587,12 @@ function protoInit() {
   const keyVscode = `${platform}.vscode`;
   const keyWindsurf = `${platform}.windsurf`;
   const keyKiro = `${platform}.kiro`;
+  const keyClaude = `${platform}.claude`;
   const vs = detected && detected.vscode ? 'detected' : 'empty';
   const ws = detected && detected.windsurf ? 'detected' : 'empty';
   const ks = detected && detected.kiro ? 'detected' : 'empty';
-  return `ok: initialized ${p} (auto-detect: ${keyVscode}=${vs}, ${keyWindsurf}=${ws}, ${keyKiro}=${ks})`;
+  const cc = detected && detected.claude ? 'detected' : 'empty';
+  return `ok: initialized ${p} (auto-detect: ${keyVscode}=${vs}, ${keyWindsurf}=${ws}, ${keyKiro}=${ks}, ${keyClaude}=${cc})`;
 }
 
 module.exports = {

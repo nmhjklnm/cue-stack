@@ -1,6 +1,6 @@
 {
   "name": "cueme",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Cue command protocol adapter (stdin/stdout JSON)",
   "license": "Apache-2.0",
   "files": [

@@ -138,8 +138,9 @@ Auto-detect (current platform only):
 
 - `vscode`: `.vscode/prompts/human_proto.md` (workspace) then platform user path
 - `windsurf`: `.codeium/windsurf/memories/global_rules.md` (workspace) then platform user path
+- `kiro`: `~/.kiro/steering/cueme_proto.md` (user-level)
+- `claude`: `~/.claude/CLAUDE.md` (user-level)
 - `codex`: uses `~/.codex/AGENTS.md` by default (not auto-detected)
-- `claude`: uses `~/.claude/CLAUDE.md` by default (not auto-detected)
 
 ### Helpers
 
