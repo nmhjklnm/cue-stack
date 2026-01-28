@@ -5,6 +5,9 @@ on:
     tags:
       - 'release-*'
 
+permissions:
+  contents: write
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -24,10 +27,25 @@ jobs:
           PREV_TAG=$(git tag --sort=-version:refname | grep "^release-" | sed -n '2p')
           
           if [ -z "$PREV_TAG" ]; then
-            # First release, publish all
-            echo "console=true" >> $GITHUB_OUTPUT
-            echo "command=true" >> $GITHUB_OUTPUT
-            echo "mcp=true" >> $GITHUB_OUTPUT
+            # First release tag in this repo: only publish packages whose version changed in the last commit
+            BASE_REF="HEAD~1"
+            if git diff "$BASE_REF" HEAD -- cue-console/package.json | grep -q '"version"'; then
+              echo "console=true" >> $GITHUB_OUTPUT
+            else
+              echo "console=false" >> $GITHUB_OUTPUT
+            fi
+
+            if git diff "$BASE_REF" HEAD -- cue-command/package.json | grep -q '"version"'; then
+              echo "command=true" >> $GITHUB_OUTPUT
+            else
+              echo "command=false" >> $GITHUB_OUTPUT
+            fi
+
+            if git diff "$BASE_REF" HEAD -- cue-mcp/pyproject.toml cue-mcp/cuemcp/__init__.py | grep -q 'version'; then
+              echo "mcp=true" >> $GITHUB_OUTPUT
+            else
+              echo "mcp=false" >> $GITHUB_OUTPUT
+            fi
           else
             # Check if version files changed
             if git diff $PREV_TAG HEAD -- cue-console/package.json | grep -q '"version"'; then
