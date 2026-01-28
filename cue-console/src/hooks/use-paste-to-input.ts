@@ -7,7 +7,7 @@ interface UsePasteToInputProps {
   setMentions: (fn: (prev: MentionDraft[]) => MentionDraft[]) => void;
   reconcileMentionsByDisplay: (display: string, prev: MentionDraft[]) => MentionDraft[];
   closeMention: () => void;
-  textareaRef: RefObject<HTMLTextAreaElement>;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
 }
 
 export function usePasteToInput({

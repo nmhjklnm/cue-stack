@@ -1,14 +1,14 @@
 import { useState, useEffect, RefObject } from "react";
 
 interface UseComposerHeightProps {
-  inputWrapRef: RefObject<HTMLDivElement>;
+  inputWrapRef: RefObject<HTMLDivElement | null>;
 }
 
 export function useComposerHeight({ inputWrapRef }: UseComposerHeightProps) {
   const [composerPadPx, setComposerPadPx] = useState(36 * 4);
 
   useEffect(() => {
-    const el = inputWrapRef.current;
+    const el = inputWrapRef ? inputWrapRef.current : null;
     if (!el) return;
 
     const update = () => {

@@ -1,7 +1,7 @@
 import { useEffect, RefObject } from "react";
 
 interface UseTextareaAutogrowProps {
-  textareaRef: RefObject<HTMLTextAreaElement>;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
   input: string;
 }
 

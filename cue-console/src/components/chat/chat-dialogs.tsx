@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { getAgentEmoji } from "@/lib/utils";
-import { randomSeed } from "@/lib/avatar";
 
 interface PreviewDialogProps {
   previewImage: { mime_type: string; base64_data: string } | null;
@@ -40,10 +39,10 @@ interface AvatarPickerDialogProps {
   onOpenChange: (open: boolean) => void;
   avatarPickerTarget: { kind: "agent" | "group"; id: string } | null;
   avatarUrlMap: Record<string, string>;
-  avatarCandidates: Array<{ seed: number; url: string }>;
+  avatarCandidates: Array<{ seed: string; url: string }>;
   titleDisplay: string;
   onRandomize: () => Promise<void>;
-  onSelectAvatar: (seed: number) => Promise<void>;
+  onSelectAvatar: (seed: string) => Promise<void>;
 }
 
 export function AvatarPickerDialog({
